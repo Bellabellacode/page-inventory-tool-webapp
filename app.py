@@ -41,7 +41,22 @@ app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
 
 # Configuration
 PROPERTY_ID = os.getenv('GA_PROPERTY_ID', "319028439")
-KEY_PATH = os.getenv('CREDENTIALS_PATH', "credentials.json")
+
+# Handle credentials for both local and cloud deployment
+CREDENTIALS_JSON = os.getenv('CREDENTIALS_JSON')
+if CREDENTIALS_JSON:
+    # For cloud deployment - use environment variable
+    import json
+    import tempfile
+    
+    # Create temporary credentials file
+    creds_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+    creds_temp.write(CREDENTIALS_JSON)
+    creds_temp.close()
+    KEY_PATH = creds_temp.name
+else:
+    # For local development - use file
+    KEY_PATH = os.getenv('CREDENTIALS_PATH', "credentials.json")
 
 def resource_path(rel_path):
     if getattr(sys, 'frozen', False):
@@ -436,17 +451,23 @@ def process_urls():
         if not urls:
             return jsonify({'error': 'No URLs provided'}), 400
         
-        # Check if credentials file exists
-        if not os.path.exists(KEY_PATH):
+        # Check if credentials are available
+        if not os.path.exists(KEY_PATH) and not CREDENTIALS_JSON:
             return jsonify({
-                'error': f'Google Analytics credentials file not found: {KEY_PATH}',
+                'error': 'Google Analytics credentials not found',
                 'setup_instructions': [
+                    'For Local Development:',
                     '1. Go to Google Cloud Console (https://console.cloud.google.com/)',
                     '2. Create a new project or select an existing one',
                     '3. Enable the Google Analytics Data API',
                     '4. Create a service account',
                     '5. Download the JSON credentials file',
                     '6. Rename it to "credentials.json" and place it in the project directory',
+                    '',
+                    'For Cloud Deployment (Vercel/Railway):',
+                    '1. Set the CREDENTIALS_JSON environment variable',
+                    '2. Copy the entire content of your credentials.json file',
+                    '3. Paste it as the value for CREDENTIALS_JSON',
                     '',
                     'See SETUP_CREDENTIALS.md for detailed instructions.'
                 ]
@@ -458,6 +479,13 @@ def process_urls():
             client = BetaAnalyticsDataClient(credentials=creds)
         except Exception as e:
             return jsonify({'error': f'Error setting up Google Analytics client: {str(e)}'}), 500
+        finally:
+            # Clean up temporary credentials file if it was created
+            if CREDENTIALS_JSON and KEY_PATH != "credentials.json":
+                try:
+                    os.unlink(KEY_PATH)
+                except:
+                    pass
         
         # Set date range
         start_date = str(date.today() - timedelta(days=365))
