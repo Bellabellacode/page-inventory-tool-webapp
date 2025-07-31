@@ -18,10 +18,16 @@ from werkzeug.utils import secure_filename
 import zipfile
 from io import BytesIO
 import sys
-import json
 
 # Load environment variables
 load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
+
+# Configuration
+PROPERTY_ID = os.getenv('GA_PROPERTY_ID', "319028439")
+KEY_PATH = os.getenv('CREDENTIALS_PATH', "credentials.json")
 
 def convert_to_serializable(obj):
     """Convert numpy types and other non-serializable objects to JSON-serializable types"""
@@ -35,20 +41,6 @@ def convert_to_serializable(obj):
         return obj
     else:
         return str(obj)
-
-app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
-
-# Configuration
-PROPERTY_ID = os.getenv('GA_PROPERTY_ID', "319028439")
-KEY_PATH = os.getenv('CREDENTIALS_PATH', "credentials.json")
-
-def resource_path(rel_path):
-    if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.abspath(os.path.dirname(__file__))
-    return os.path.join(base_path, rel_path)
 
 def normalize_path(path):
     path = re.sub(r'//+', '/', path)
@@ -255,8 +247,10 @@ def get_ai_insights(grouped_data, section_traffic_percentage, overall_stats):
             try:
                 gemini_reply = res_json["candidates"][0]["content"]["parts"][0]["text"]
             except Exception as nested_e:
+                print("Could not extract text from Gemini API:", nested_e)
                 gemini_reply = "Failed to parse Gemini API output."
         else:
+            print("Gemini API error:", response.status_code, response.text)
             gemini_reply = "API error: " + str(response.status_code)
     except Exception as e:
         gemini_reply = "Error retrieving Gemini suggestions: " + str(e)
@@ -541,9 +535,6 @@ def download():
     
     return send_file(file_path, as_attachment=True, download_name=filename)
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-# For Vercel
-app.debug = False 
+# Vercel serverless function handler
+def handler(request, context):
+    return app(request, context) 

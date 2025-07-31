@@ -1,7 +1,7 @@
-google-analytics-data==0.13.2
+flask==3.0.0
+google-analytics-data==0.18.4
 google-auth==2.29.0
 pandas==2.2.2
 openpyxl==3.1.2
 requests==2.31.0
 python-dotenv==1.0.0
-flask==3.0.0
