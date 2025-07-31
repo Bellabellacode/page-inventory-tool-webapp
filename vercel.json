@@ -11,11 +11,5 @@
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "env": {
-    "GA_PROPERTY_ID": "@ga_property_id",
-    "GEMINI_API_KEY": "@gemini_api_key",
-    "SECRET_KEY": "@secret_key",
-    "CREDENTIALS_JSON": "@credentials_json"
-  }
+  ]
 } 
