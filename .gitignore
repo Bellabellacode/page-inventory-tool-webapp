@@ -1,6 +1,12 @@
 # Google Analytics credentials (sensitive)
 credentials.json
 
+# Environment variables (sensitive)
+.env
+.env.local
+.env.production
+.env.staging
+
 # Generated Excel files
 *.xlsx
 *.xls

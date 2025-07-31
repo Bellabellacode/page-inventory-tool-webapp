@@ -8,9 +8,13 @@ import openpyxl
 import re
 import requests
 from openpyxl.styles import Alignment
+from dotenv import load_dotenv
 
 import sys
 import os
+
+# Load environment variables
+load_dotenv()
 
 def resource_path(rel_path):
     if getattr(sys, 'frozen', False):
@@ -152,18 +156,23 @@ def analyze_pages(grouped_data):
         reasons = []
         actions = []
 
+        # Get thresholds from environment variables or use defaults
+        low_views_threshold = int(os.getenv('LOW_VIEWS_THRESHOLD', '25'))
+        high_bounce_threshold = float(os.getenv('HIGH_BOUNCE_RATE_THRESHOLD', '45.0'))
+        long_engagement_threshold = float(os.getenv('LONG_ENGAGEMENT_THRESHOLD', '60.0'))
+        
         # Condition 1: Low Page-views
-        if row["Views"] <= 25:
+        if row["Views"] <= low_views_threshold:
             reasons.append("Low page-views")
             actions.append("Remove the page if it's no longer needed, or • Improve its visibility: add links from high-traffic pages or menus.")
 
         # Condition 2: High Bounce Rate
-        if row["Bounce Rate (%)"] >= 45:
+        if row["Bounce Rate (%)"] >= high_bounce_threshold:
             reasons.append("High bounce rate")
             actions.append("Strengthen the \"first impression\": refine the page title, intro sentence, and hero image so they immediately match user intent.")
 
         # Condition 3: Long Engagement Time Per View
-        if row["Engagement Time Per View"] > 60:
+        if row["Engagement Time Per View"] > long_engagement_threshold:
             reasons.append("Avg. engagement > 60 s")
             actions.append("Tighten the page: focus on one topic, trim long sections, add clear sub-heads and bullets for quicker scanning.")
 
@@ -229,7 +238,11 @@ def get_ai_insights(grouped_data, section_traffic_percentage, overall_stats):
         "Make your analysis as specific and actionable as possible based only on the titles and analytics provided."
     )
 
-    api_key = 'AIzaSyCJZYaI9TyOPbJvhjmH4mLcJp7h0qNd_zI'
+    api_key = os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        print("Warning: GEMINI_API_KEY not found in environment variables. AI insights will be disabled.")
+        return "AI insights disabled: GEMINI_API_KEY not configured. Please set the GEMINI_API_KEY environment variable."
+    
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {
         "contents": [
@@ -415,8 +428,8 @@ def process_single_department(url, client, start_date, end_date, filename, prope
 def main():
     """Main function to run the batch processing"""
     # Configuration
-    PROPERTY_ID = "319028439"
-    KEY_PATH = resource_path("credentials.json")
+    PROPERTY_ID = os.getenv('GA_PROPERTY_ID', "319028439")
+    KEY_PATH = resource_path(os.getenv('CREDENTIALS_PATH', "credentials.json"))
     
     # Get user input
     urls_and_naming = get_user_input()
