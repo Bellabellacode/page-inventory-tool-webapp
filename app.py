@@ -4,6 +4,8 @@ from datetime import date, timedelta
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, Filter, FilterExpression, Dimension, Metric
 from google.oauth2 import service_account
+from google.api_core.exceptions import ServiceUnavailable, TooManyRequests, InternalServerError
+import time
 import pandas as pd
 import openpyxl
 import re
@@ -128,8 +130,31 @@ def fetch_analytics_data(client, dept_path, start_date, end_date, property_id):
             )
         ),
     )
-    
-    return client.run_report(request)
+
+    # Retry logic for transient errors (503, rate limits, internal errors)
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return client.run_report(request)
+        except (ServiceUnavailable, TooManyRequests, InternalServerError) as e:
+            # Transient server or quota errors - retry with backoff
+            wait = 2 ** attempt
+            print(f"[WARN] GA API transient error (attempt {attempt}/{max_attempts}): {e}. Retrying in {wait}s")
+            if attempt == max_attempts:
+                raise
+            time.sleep(wait)
+        except Exception as e:
+            msg = str(e)
+            # Sometimes grpc or HTTP 503 manifests as generic exceptions containing '503' or 'rateLimitExceeded'
+            if '503' in msg or 'rateLimitExceeded' in msg or 'quota' in msg.lower():
+                wait = 2 ** attempt
+                print(f"[WARN] GA API generic transient error detected (attempt {attempt}/{max_attempts}): {msg}. Retrying in {wait}s")
+                if attempt == max_attempts:
+                    raise
+                time.sleep(wait)
+            else:
+                # Non-retryable error — re-raise to be handled upstream
+                raise
 
 def process_analytics_data(resp, base_url):
     """Process raw analytics data into structured format"""
