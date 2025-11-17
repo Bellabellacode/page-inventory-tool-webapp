@@ -81,10 +81,16 @@ def resource_path(rel_path):
     return os.path.join(base_path, rel_path)
 
 def normalize_path(path):
+    # Normalize repeated slashes
     path = re.sub(r'//+', '/', path)
+    # Remove trailing index.html
     path = re.sub(r'(\/)?index\.html$', '', path, flags=re.IGNORECASE)
-    if not path.endswith('/'):
-        path += '/'
+    # Ensure leading slash
+    if not path.startswith('/'):
+        path = '/' + path
+    # Remove trailing slash except for root
+    if path.endswith('/') and path != '/':
+        path = path[:-1]
     return path
 
 def clean_page_title(title):
