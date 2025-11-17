@@ -111,3 +111,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp 
+# Local running logs
+server.log
